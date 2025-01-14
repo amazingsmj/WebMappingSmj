@@ -9,16 +9,20 @@ function Customers() {
   const [isEditMode, setIsEditMode] = useState(false); // Nouveau pour distinguer Ajouter/Modifier
   const [form] = Form.useForm();
   const [editingRecord, setEditingRecord] = useState(null); // Enregistre le candidat à modifier
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false); // Pour afficher la modale de modification
-
 
   useEffect(() => {
     setLoading(true);
     getCustomers().then((res) => {
-      setDataSource(res.users);
+      // Ajout d'une clé unique si non existante
+      const usersWithKeys = res.users.map((user) => ({ ...user, key: user.key || Date.now() + Math.random() }));
+      setDataSource(usersWithKeys);
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    console.log("Data source updated:", dataSource);
+  }, [dataSource]);
 
   // Ouvre le modal pour ajouter un candidat
   const handleAjouterCandidat = () => {
@@ -29,21 +33,10 @@ function Customers() {
 
   // Ouvre le modal pour modifier un candidat
   const handleModifier = (record) => {
-    setEditingRecord(record); // Définir l'élément en cours de modification
-    form.setFieldsValue(record); // Pré-remplir les champs du formulaire avec les données de l'élément
-    setIsEditModalVisible(true); // Ouvrir la modale
-  };
-
-  const handleUpdateCandidate = (values) => {
-    setDataSource((prevDataSource) =>
-      prevDataSource.map((candidate) =>
-        candidate.key === editingRecord.key
-          ? { ...candidate, ...values } // Mettre à jour uniquement l'élément correspondant
-          : candidate
-      )
-    );
-    setIsEditModalVisible(false); // Fermer la modale
-    setEditingRecord(null); // Réinitialiser l'élément en cours de modification
+    setIsEditMode(true); // Mode modification
+    setEditingRecord(record); // Enregistre les données du candidat à modifier
+    setIsModalVisible(true);
+    form.setFieldsValue(record); // Pré-remplit le formulaire avec les données existantes
   };
 
   // Annule et ferme le modal
@@ -56,7 +49,7 @@ function Customers() {
   // Gère l'ajout ou la modification d'un candidat
   const handleSubmit = (values) => {
     if (isEditMode) {
-      // Modification : met à jour le candidat dans la liste
+      // Modification : met à jour uniquement le candidat avec la clé correspondante
       setDataSource((prevDataSource) =>
         prevDataSource.map((candidate) =>
           candidate.key === editingRecord.key ? { ...candidate, ...values } : candidate
@@ -65,7 +58,7 @@ function Customers() {
     } else {
       // Ajout : ajoute un nouveau candidat
       const newCandidate = {
-        key: Date.now(), // Clé unique
+        key: Date.now(), // Génère une clé unique pour chaque nouveau candidat
         ...values,
         image: "https://via.placeholder.com/150", // Image par défaut
       };
@@ -153,16 +146,12 @@ function Customers() {
 
         {/* Modal pour ajouter/modifier un candidat */}
         <Modal
-          title="Modifier un Candidat"
-          visible={isEditModalVisible}
-          onCancel={() => {
-            setIsEditModalVisible(false);
-            setEditingRecord(null);
-            form.resetFields();
-          }}
+          title={isEditMode ? "Modifier un Candidat" : "Ajouter un Candidat"}
+          visible={isModalVisible}
+          onCancel={handleCancel}
           footer={null}
         >
-          <Form form={form} onFinish={handleUpdateCandidate} layout="vertical">
+          <Form form={form} onFinish={handleSubmit} layout="vertical">
             <Form.Item
               label="Nom"
               name="firstName"
@@ -196,31 +185,22 @@ function Customers() {
               </Select>
             </Form.Item>
             <Form.Item
-              label="Programme Electoral"
+              label="Programme Électoral"
               name="address"
-              rules={[{ required: true, message: "Veuillez entrer le programme électoral" }]}
+              rules={[{ required: true, message: "Veuillez entrer l'adresse" }]}
             >
               <Input />
             </Form.Item>
             <Form.Item>
               <Space>
-                <Button
-                  onClick={() => {
-                    setIsEditModalVisible(false);
-                    setEditingRecord(null);
-                    form.resetFields();
-                  }}
-                >
-                  Annuler
-                </Button>
+                <Button onClick={handleCancel}>Annuler</Button>
                 <Button type="primary" htmlType="submit">
-                  Modifier
+                  {isEditMode ? "Modifier" : "Ajouter"}
                 </Button>
               </Space>
             </Form.Item>
           </Form>
         </Modal>
-
       </Space>
     </div>
   );
