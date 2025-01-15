@@ -1,73 +1,90 @@
-import { Avatar, Button, Space, Table, Typography, Row, Col, Modal, Form, Input, Select } from "antd";
+import { Avatar, Button, Space, Table, Typography, Row, Col, Modal, Form, Input, Select, Upload, message } from "antd";
 import { useEffect, useState } from "react";
 import { getCustomers } from "../../API";
+import { UploadOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons"; // Importez les icônes nécessaires
 
 function Customers() {
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false); // Nouveau pour distinguer Ajouter/Modifier
+  const [isEditMode, setIsEditMode] = useState(false);
   const [form] = Form.useForm();
-  const [editingRecord, setEditingRecord] = useState(null); // Enregistre le candidat à modifier
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     setLoading(true);
     getCustomers().then((res) => {
-      // Ajout d'une clé unique si non existante
-      const usersWithKeys = res.users.map((user) => ({ ...user, key: user.key || Date.now() + Math.random() }));
-      setDataSource(usersWithKeys);
+      setDataSource(res.users);
       setLoading(false);
     });
   }, []);
 
-  useEffect(() => {
-    console.log("Data source updated:", dataSource);
-  }, [dataSource]);
-
-  // Ouvre le modal pour ajouter un candidat
   const handleAjouterCandidat = () => {
-    setIsEditMode(false); // Mode ajout
+    setIsEditMode(false);
     setIsModalVisible(true);
-    form.resetFields(); // Réinitialise le formulaire
+    form.resetFields();
+    setImagePreview(null);
   };
 
-  // Ouvre le modal pour modifier un candidat
   const handleModifier = (record) => {
-    setIsEditMode(true); // Mode modification
-    setEditingRecord(record); // Enregistre les données du candidat à modifier
+    setIsEditMode(true);
+    setEditingRecord(record);
     setIsModalVisible(true);
-    form.setFieldsValue(record); // Pré-remplit le formulaire avec les données existantes
+    form.setFieldsValue(record);
+    setImagePreview(record.image);
   };
 
-  // Annule et ferme le modal
   const handleCancel = () => {
     setIsModalVisible(false);
     form.resetFields();
     setEditingRecord(null);
+    setImagePreview(null);
   };
 
-  // Gère l'ajout ou la modification d'un candidat
   const handleSubmit = (values) => {
+    const newCandidate = {
+      key: isEditMode ? editingRecord.key : Date.now(),
+      ...values,
+      image: imagePreview || "https://via.placeholder.com/150",
+    };
+
     if (isEditMode) {
-      // Modification : met à jour uniquement le candidat avec la clé correspondante
       setDataSource((prevDataSource) =>
         prevDataSource.map((candidate) =>
-          candidate.key === editingRecord.key ? { ...candidate, ...values } : candidate
+          candidate.key === editingRecord.key ? newCandidate : candidate
         )
       );
     } else {
-      // Ajout : ajoute un nouveau candidat
-      const newCandidate = {
-        key: Date.now(), // Génère une clé unique pour chaque nouveau candidat
-        ...values,
-        image: "https://via.placeholder.com/150", // Image par défaut
-      };
       setDataSource((prevDataSource) => [...prevDataSource, newCandidate]);
     }
 
-    setIsModalVisible(false); // Ferme le modal
-    form.resetFields(); // Réinitialise le formulaire
-    setEditingRecord(null); // Réinitialise l'enregistrement en cours d'édition
+    setIsModalVisible(false);
+    form.resetFields();
+    setEditingRecord(null);
+    setImagePreview(null);
+  };
+
+  const handleImageUpload = (file) => {
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("Veuillez sélectionner un fichier image.");
+      return false;
+    }
+
+    const isSizeValid = file.size / 1024 / 1024 < 2;
+    if (!isSizeValid) {
+      message.error("L'image doit être inférieure à 2 Mo.");
+      return false;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+
+    return false;
   };
 
   const handleRetirer = (record) => {
@@ -77,15 +94,8 @@ function Customers() {
   };
 
   return (
-    <div
-      style={{
-        justifyContent: "center",
-        alignItems: "center",
-        paddingLeft: "210px",
-      }}
-    >
+    <div style={{ justifyContent: "center", alignItems: "center", paddingLeft: "210px" }}>
       <Space size={20} direction="vertical" style={{ width: "100%" }}>
-        {/* Ligne avec le titre et le bouton */}
         <Row justify="space-between" align="middle">
           <Col>
             <Typography.Title level={4}>Liste des Candidats</Typography.Title>
@@ -97,7 +107,6 @@ function Customers() {
           </Col>
         </Row>
 
-        {/* Tableau des candidats */}
         <Table
           loading={loading}
           columns={[
@@ -130,12 +139,8 @@ function Customers() {
               title: "Action",
               render: (_, record) => (
                 <Space size="middle">
-                  <Button type="link" onClick={() => handleModifier(record)}>
-                    Modifier
-                  </Button>
-                  <Button type="link" danger onClick={() => handleRetirer(record)}>
-                    Retirer
-                  </Button>
+                  <Button type="link" icon={<EditOutlined />} onClick={() => handleModifier(record)} />
+                  <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRetirer(record)} />
                 </Space>
               ),
             },
@@ -144,7 +149,6 @@ function Customers() {
           pagination={{ pageSize: 5 }}
         />
 
-        {/* Modal pour ajouter/modifier un candidat */}
         <Modal
           title={isEditMode ? "Modifier un Candidat" : "Ajouter un Candidat"}
           visible={isModalVisible}
@@ -190,6 +194,20 @@ function Customers() {
               rules={[{ required: true, message: "Veuillez entrer l'adresse" }]}
             >
               <Input />
+            </Form.Item>
+            <Form.Item label="Photo">
+              <Upload
+                beforeUpload={handleImageUpload}
+                showUploadList={false}
+                accept="image/*"
+              >
+                <Button icon={<UploadOutlined />}>Télécharger une photo</Button>
+              </Upload>
+              {imagePreview && (
+                <div style={{ marginTop: 10 }}>
+                  <Avatar src={imagePreview} size={64} />
+                </div>
+              )}
             </Form.Item>
             <Form.Item>
               <Space>

@@ -1,7 +1,7 @@
 import {
   AppstoreOutlined,
    BankOutlined, TeamOutlined,
-  SolutionOutlined,
+  SolutionOutlined, EnvironmentOutlined, GlobalOutlined 
 } from "@ant-design/icons";
 import { Menu } from "antd";
 import { useEffect, useState } from "react";
@@ -22,6 +22,7 @@ function SideMenu() {
       <Menu
         className="SideMenuVertical"
         mode="vertical"
+        style={{width: '200px', padding: '10px', borderRight: '1px solid #ccc'}}
         onClick={(item) => {
           //item.key
           navigate(item.key);
@@ -47,6 +48,11 @@ function SideMenu() {
             label: "Candidats",
             key: "/customers",
             icon: <TeamOutlined   />,
+          },
+          {
+            label: "Map",
+            key: "/map",
+            icon: <GlobalOutlined />,
           },
         ]}
       ></Menu>
